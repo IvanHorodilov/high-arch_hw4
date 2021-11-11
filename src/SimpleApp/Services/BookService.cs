@@ -27,6 +27,11 @@ namespace BooksApi.Services
         public Book Get(string id) =>
             _books.Find<Book>(book => book.Id == id).FirstOrDefault();
 
+        public List<Book> GetTop(int count)
+        {
+            return _books.Find(i => true).SortByDescending(i => i.Id).Limit(count).ToList();
+        }
+
         public Book Create(Book book)
         {
             _books.InsertOne(book);

@@ -20,6 +20,9 @@ namespace BooksApi.Controllers
         public ActionResult<List<Book>> Get() =>
             _bookService.Get();
 
+        [HttpGet("top")]
+        public IActionResult<List<Book>> Top() => _bookService.Create();
+
         [HttpGet("{id:length(24)}", Name = "GetBook")]
         public ActionResult<Book> Get(string id)
         {
