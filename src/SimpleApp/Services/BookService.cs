@@ -1,6 +1,7 @@
 using BooksApi.Models;
 using MongoDB.Driver;
 using Nest;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -29,11 +30,12 @@ namespace BooksApi.Services
 
         public List<Book> GetTop(int count)
         {
-            return _books.Find(i => true).SortByDescending(i => i.Id).Limit(count).ToList();
+            return _books.Find(i => true).SortByDescending(i => i.Author).Limit(count).ToList();
         }
 
         public Book Create(Book book)
         {
+            book.Author = Guid.NewGuid().ToString();
             _books.InsertOne(book);
             return book;
         }
