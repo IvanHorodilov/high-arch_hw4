@@ -21,7 +21,7 @@ namespace BooksApi.Controllers
             _bookService.Get();
 
         [HttpGet("top")]
-        public IActionResult<List<Book>> Top() => _bookService.Create();
+        public ActionResult<List<Book>> Top([FromQuery] int count) => _bookService.GetTop(count);
 
         [HttpGet("{id:length(24)}", Name = "GetBook")]
         public ActionResult<Book> Get(string id)
