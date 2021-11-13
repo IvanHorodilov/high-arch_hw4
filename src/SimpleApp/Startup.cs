@@ -6,6 +6,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
+using StackExchange.Redis;
 
 namespace SimpleApp
 {
@@ -30,6 +31,13 @@ namespace SimpleApp
             services.AddStackExchangeRedisCache(options =>
             {
                 options.Configuration = Configuration.GetValue<string>("CacheSettings:ConnectionString");
+                options.ConfigurationOptions = new ConfigurationOptions
+                {
+                    EndPoints = { { Configuration.GetValue<string>("CacheSettings:ConnectionString"), 6379 } },
+                    ConnectRetry = 2,
+                    ReconnectRetryPolicy = new LinearRetry(10),
+                    ConnectTimeout = 5000,
+                };
             });
 
             services.AddSingleton<BookService>();
