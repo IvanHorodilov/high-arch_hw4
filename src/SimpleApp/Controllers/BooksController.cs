@@ -1,7 +1,12 @@
 using BooksApi.Models;
 using BooksApi.Services;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Caching.Distributed;
+using Newtonsoft.Json;
+using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace BooksApi.Controllers
 {
@@ -10,10 +15,13 @@ namespace BooksApi.Controllers
     public class BooksController : ControllerBase
     {
         private readonly BookService _bookService;
+        private readonly IDistributedCache _cache;
+        private Random _rand = new Random();
 
-        public BooksController(BookService bookService)
+        public BooksController(BookService bookService, IDistributedCache cache)
         {
             _bookService = bookService;
+            _cache = cache;
         }
 
         [HttpGet]
@@ -21,7 +29,20 @@ namespace BooksApi.Controllers
             _bookService.Get();
 
         [HttpGet("top")]
-        public ActionResult<List<Book>> Top([FromQuery] int count) => _bookService.GetTop(count);
+        public async Task<ActionResult<List<Book>>> TopAsync([FromQuery] int count, [FromQuery] bool cache)
+        {
+            var userId = _rand.Next(1, 100).ToString();
+            var data = await _cache.GetStringAsync(userId);  
+            if (!string.IsNullOrEmpty(data))
+                return JsonConvert.DeserializeObject<List<Book>>(data);
+
+            var result = _bookService.GetTop(count);
+
+            data = JsonConvert.SerializeObject(result);
+            await _cache.SetStringAsync(userId, data, new DistributedCacheEntryOptions {AbsoluteExpirationRelativeToNow = new TimeSpan(0, 0, 20) });
+
+            return result;
+        }
 
         [HttpGet("{id:length(24)}", Name = "GetBook")]
         public ActionResult<Book> Get(string id)

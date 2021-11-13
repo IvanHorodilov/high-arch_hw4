@@ -21,6 +21,10 @@ services:
       ports:
         - "${MONGODB_PORT}:27017"
 
+### RedisDB ##############################################
+    redis:
+      image: redis:alpine
+
 ### Grafana ################################################
     grafana:
       build:
@@ -61,6 +65,7 @@ services:
         - influxdb
         - nginx
         - mongo
+        - redis
       volumes:
         - ./telegraf.conf:/etc/telegraf/telegraf.conf:ro
         - /var/run/docker.sock:/var/run/docker.sock

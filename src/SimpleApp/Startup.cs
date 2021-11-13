@@ -26,7 +26,12 @@ namespace SimpleApp
 
             services.AddSingleton<IBookstoreDatabaseSettings>(sp =>
                 sp.GetRequiredService<IOptions<BookstoreDatabaseSettings>>().Value);
-            
+
+            services.AddStackExchangeRedisCache(options =>
+            {
+                options.Configuration = Configuration.GetValue<string>("CacheSettings:ConnectionString");
+            });
+
             services.AddSingleton<BookService>();
 
             services.AddMvc().AddNewtonsoftJson();
