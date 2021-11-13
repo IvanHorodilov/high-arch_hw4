@@ -2,6 +2,7 @@ using BooksApi.Models;
 using BooksApi.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Distributed;
+using Microsoft.Extensions.Configuration;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
@@ -16,12 +17,14 @@ namespace BooksApi.Controllers
     {
         private readonly BookService _bookService;
         private readonly IDistributedCache _cache;
+        private readonly int _userCount;
         private Random _rand = new Random();
 
-        public BooksController(BookService bookService, IDistributedCache cache)
+        public BooksController(BookService bookService, IDistributedCache cache, IConfiguration configuration)
         {
             _bookService = bookService;
             _cache = cache;
+            _userCount = configuration.GetValue<int>("UsersCount");
         }
 
         [HttpGet]
@@ -29,17 +32,20 @@ namespace BooksApi.Controllers
             _bookService.Get();
 
         [HttpGet("top")]
-        public async Task<ActionResult<List<Book>>> TopAsync([FromQuery] int count, [FromQuery] bool cache)
+        public ActionResult<List<Book>> Top([FromQuery] int count) => _bookService.GetTop(count);
+
+        [HttpGet("top-cache")]
+        public async Task<ActionResult<List<Book>>> TopWithCacheAsync([FromQuery] int count)
         {
-            var userId = _rand.Next(1, 100).ToString();
-            var data = await _cache.GetStringAsync(userId);  
+            var userId = _rand.Next(1, _userCount).ToString();
+            var data = await _cache.GetStringAsync(userId);
             if (!string.IsNullOrEmpty(data))
                 return JsonConvert.DeserializeObject<List<Book>>(data);
 
             var result = _bookService.GetTop(count);
 
             data = JsonConvert.SerializeObject(result);
-            await _cache.SetStringAsync(userId, data, new DistributedCacheEntryOptions {AbsoluteExpirationRelativeToNow = new TimeSpan(0, 0, 20) });
+            await _cache.SetStringAsync(userId, data, new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = new TimeSpan(0, 0, 20) });
 
             return result;
         }
