@@ -54,7 +54,6 @@ namespace BooksApi.Controllers
 
             data = JsonConvert.SerializeObject(result);
             await _cache.SetStringAsync(userId, data, new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = new TimeSpan(0, 0, 20) });
-            await _cache.SetStringAsync(userId, data, new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = new TimeSpan(0, 0, 20) });
 
             return result;
         }
