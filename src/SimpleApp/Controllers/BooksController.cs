@@ -6,11 +6,19 @@ using Microsoft.Extensions.Configuration;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 
 namespace BooksApi.Controllers
 {
+    public class CacheItem<T>
+    {
+        public T Value { get; set; }
+        public DateTimeOffset TTL { get; set; }
+        public TimeSpan Delta { get; set; }
+    }
+
     [Route("api/[controller]")]
     [ApiController]
     public class BooksController : ControllerBase
@@ -38,16 +46,20 @@ namespace BooksApi.Controllers
         public async Task<ActionResult<List<Book>>> TopWithCacheAsync([FromQuery] int count)
         {
             var userId = _rand.Next(1, _userCount).ToString();
-            var data = await _cache.GetStringAsync(userId);
-            if (!string.IsNullOrEmpty(data))
-                return JsonConvert.DeserializeObject<List<Book>>(data);
+            var cached = JsonConvert.DeserializeObject<CacheItem<List<Book>>>(await _cache.GetStringAsync(userId));
+            var beta = 1;
+            if (cached is null || DateTimeOffset.Now - cached.Delta * beta * Math.Log(_rand.NextDouble()) >= cached.TTL)
+            {
+                var sw = Stopwatch.StartNew();
+                var result = _bookService.GetTop(count);
+                sw.Stop();
+                var expiryDate = DateTimeOffset.UtcNow.AddSeconds(20);
+                var cacheItem = new CacheItem<List<Book>> { Value = result, TTL = expiryDate, Delta = sw.Elapsed };
+                await _cache.SetStringAsync(userId, JsonConvert.SerializeObject(cacheItem), new DistributedCacheEntryOptions { AbsoluteExpiration = expiryDate });
+                return result;
+            }
 
-            var result = _bookService.GetTop(count);
-
-            data = JsonConvert.SerializeObject(result);
-            await _cache.SetStringAsync(userId, data, new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = new TimeSpan(0, 0, 20) });
-
-            return result;
+            return cached.Value;
         }
 
         [HttpGet("{id:length(24)}", Name = "GetBook")]
