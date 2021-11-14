@@ -46,9 +46,35 @@ namespace BooksApi.Controllers
         public async Task<ActionResult<List<Book>>> TopWithCacheAsync([FromQuery] int count)
         {
             var userId = _rand.Next(1, _userCount).ToString();
-            var cached = JsonConvert.DeserializeObject<CacheItem<List<Book>>>(await _cache.GetStringAsync(userId));
+            var data = await _cache.GetStringAsync(userId);
+            if (!string.IsNullOrEmpty(data))
+                return JsonConvert.DeserializeObject<List<Book>>(data);
+
+            var result = _bookService.GetTop(count);
+
+            data = JsonConvert.SerializeObject(result);
+            await _cache.SetStringAsync(userId, data, new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = new TimeSpan(0, 0, 20) });
+            await _cache.SetStringAsync(userId, data, new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = new TimeSpan(0, 0, 20) });
+
+            return result;
+        }
+
+        [HttpGet("top-cache-stampede")]
+        public async Task<ActionResult<List<Book>>> TopWithCacheStampedeAsync([FromQuery] int count)
+        {
+            var userId = _rand.Next(1, _userCount).ToString();
+            var cachedStr = await _cache.GetStringAsync(userId);
+            if (string.IsNullOrEmpty(cachedStr))
+                return await GetResult(count, userId);
+
+            var cached = JsonConvert.DeserializeObject<CacheItem<List<Book>>>(cachedStr);
             var beta = 1;
             if (cached is null || DateTimeOffset.Now - cached.Delta * beta * Math.Log(_rand.NextDouble()) >= cached.TTL)
+                return await GetResult(count, userId);
+
+            return cached.Value;
+
+            async Task<ActionResult<List<Book>>> GetResult(int count, string userId)
             {
                 var sw = Stopwatch.StartNew();
                 var result = _bookService.GetTop(count);
@@ -58,8 +84,6 @@ namespace BooksApi.Controllers
                 await _cache.SetStringAsync(userId, JsonConvert.SerializeObject(cacheItem), new DistributedCacheEntryOptions { AbsoluteExpiration = expiryDate });
                 return result;
             }
-
-            return cached.Value;
         }
 
         [HttpGet("{id:length(24)}", Name = "GetBook")]
