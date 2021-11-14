@@ -23,6 +23,8 @@ namespace BooksApi.Controllers
     [ApiController]
     public class BooksController : ControllerBase
     {
+        private const int CacheExpirySecs = 3;
+
         private readonly BookService _bookService;
         private readonly IDistributedCache _cache;
         private readonly int _userCount;
@@ -53,7 +55,7 @@ namespace BooksApi.Controllers
             var result = _bookService.GetTop(count);
 
             data = JsonConvert.SerializeObject(result);
-            await _cache.SetStringAsync(userId, data, new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = new TimeSpan(0, 0, 20) });
+            await _cache.SetStringAsync(userId, data, new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = new TimeSpan(0, 0, CacheExpirySecs) });
 
             return result;
         }
@@ -78,7 +80,7 @@ namespace BooksApi.Controllers
                 var sw = Stopwatch.StartNew();
                 var result = _bookService.GetTop(count);
                 sw.Stop();
-                var expiryDate = DateTimeOffset.UtcNow.AddSeconds(20);
+                var expiryDate = DateTimeOffset.UtcNow.AddSeconds(CacheExpirySecs);
                 var cacheItem = new CacheItem<List<Book>> { Value = result, TTL = expiryDate, Delta = sw.Elapsed };
                 await _cache.SetStringAsync(userId, JsonConvert.SerializeObject(cacheItem), new DistributedCacheEntryOptions { AbsoluteExpiration = expiryDate });
                 return result;
